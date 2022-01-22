@@ -44,15 +44,20 @@ void createGameSession(int mySockfd, int opSockfd, struct sockaddr_in myAddress,
     if (strcmp(recBuffer, PLAYREQ) == 0) {
         printf("dostalem PLAYREQ\n");
         sendto(opSockfd, PLAYACC, strlen(PLAYACC), 0, (struct sockaddr*) &opponentAddress, len);
+        printf("Wyslalem PLAYACC\n");
         tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+        printf("Dostalem nick\n");
         recBuffer[tmp] = '\0';
         strcpy(myGame->opNick, recBuffer);
         sendto(opSockfd, myGame->myNick, strlen(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
+        printf("Wyslalem nick");
         myGame->myTurn = MY_TURN;
     } else if (strcmp(recBuffer, PLAYACC) == 0) {
-        printf("Dostalem PLAYACC");
+        printf("Dostalem PLAYACC\n");
         sendto(opSockfd, myGame->myNick, strlen(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
+        printf("Wyslalem nick\n");
         tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+        printf("Dostalem nick\n");
         recBuffer[tmp] = '\0';
         strcpy(myGame->opNick, recBuffer);
         myGame->myTurn = OP_TURN;
