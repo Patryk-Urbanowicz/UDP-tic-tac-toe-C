@@ -16,9 +16,8 @@ int flagMyMove = 0;
 int main(int argc, char* argv[]) {
     int mySockfd, opSockfd;
     struct sockaddr_in myAddress, opponentAddress;
-    char buffer[MSG_LEN];
+    char recBuffer[MSG_LEN], sndBuffer[MSG_LEN];
     int childPid;
-    char *test = "test";
 
     if ((mySockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         printf("socket() failed\n");
@@ -30,11 +29,11 @@ int main(int argc, char* argv[]) {
     memset(&opponentAddress, 0, sizeof(opponentAddress));
 
     myAddress.sin_family = AF_INET;
-    myAddress.sin_addr.s_addr = INADDR_ANY;
+    myAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
     myAddress.sin_port = htons(n);
 
     opponentAddress.sin_family = AF_INET;
-    opponentAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+    opponentAddress.sin_addr.s_addr = inet_addr(argv[1]);
     opponentAddress.sin_port = htons(n);
 
     if (bind(mySockfd, (struct sockaddr*) &myAddress, sizeof(myAddress)) < 0) {
@@ -44,20 +43,26 @@ int main(int argc, char* argv[]) {
     printf("[bind completed]\n");
 
     opSockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    socklen_t len = sizeof(opponentAddress);
 
     if ((childPid = fork()) == 0) {
-        socklen_t len = sizeof(opponentAddress);
-        printf("Child waiting for a message\n");
-        int recLen = recvfrom(mySockfd, buffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
-        buffer[recLen] = '\0';
+        while(1) {
+        printf("[Child waiting for a message]\n");
+        int recLen = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+        recBuffer[recLen] = '\0';
         printf("[Child: Received message]\n");
-        printf("message: %s", buffer);
+        printf("message: %s", recBuffer);
+        }
+        
         exit(0);
     } else {
+        while(1) {
+        printf("Give me message:\n");
+        fgets(sndBuffer, MSG_LEN, stdin);
         printf("[Sending message]\n");
-        sendto(opSockfd, test, strlen(test), 0, (struct sockaddr*) &opponentAddress, sizeof(opponentAddress));
-        printf("Parent going to sleep\n");
-        wait(NULL);
+        sendto(opSockfd, sndBuffer, strlen(sndBuffer), 0, (struct sockaddr*) &opponentAddress, len);
+        }
+        
     }
     close(mySockfd);
     return 0;
