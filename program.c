@@ -7,10 +7,11 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 #define MSG_LEN 512
 #define n 8765
-#define PLAYREQ "PLAYME"
+#define PLAYREQ "PLAYREQ"
 #define PLAYACC "PLAYOK"
 #define ENDGAME "<koniec>"
 #define GETSCORE "<wynik>" 
@@ -38,14 +39,14 @@ void createGameSession(int mySockfd, int opSockfd, struct sockaddr_in myAddress,
     tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
     printf("Dostalem odpowiedz\n");
     recBuffer[tmp] = '\0';
-
     //define who is moving first and what nicknames are
     //after receiving PLAYACC send nickname and wait for opponent's one
     if (strcmp(recBuffer, PLAYREQ) == 0) {
         printf("dostalem PLAYREQ\n");
         sendto(opSockfd, PLAYACC, strlen(PLAYACC), 0, (struct sockaddr*) &opponentAddress, len);
         printf("Wyslalem PLAYACC\n");
-        tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+        printf("Oczekuje na nick\n");
+        tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len); //tutaj problem?
         printf("Dostalem nick\n");
         recBuffer[tmp] = '\0';
         strcpy(myGame->opNick, recBuffer);
