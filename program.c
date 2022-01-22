@@ -32,26 +32,32 @@ char recBuffer[MSG_LEN], sndBuffer[MSG_LEN];
 void createGameSession(int mySockfd, int opSockfd, struct sockaddr_in myAddress, struct sockaddr_in opponentAddress, socklen_t len) {
     int tmp;
     //Sends play request and awaits for answer
-    sendto(opSockfd, PLAYREQ, sizeof(PLAYREQ), 0, (struct sockaddr*) &opponentAddress, len);
-    printf("[Propozycja gry wysłana]");
+    printf("Wysylanie propozycji gry...\n");
+    sendto(opSockfd, PLAYREQ, strlen(PLAYREQ), 0, (struct sockaddr*) &opponentAddress, len);
+    printf("[Propozycja gry wysłana]\n");
     tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+    printf("Dostalem odpowiedz\n");
     recBuffer[tmp] = '\0';
 
     //define who is moving first and what nicknames are
     //after receiving PLAYACC send nickname and wait for opponent's one
     if (strcmp(recBuffer, PLAYREQ) == 0) {
-        sendto(opSockfd, PLAYACC, sizeof(PLAYACC), 0, (struct sockaddr*) &opponentAddress, len);
+        printf("dostalem PLAYREQ\n");
+        sendto(opSockfd, PLAYACC, strlen(PLAYACC), 0, (struct sockaddr*) &opponentAddress, len);
         tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
         recBuffer[tmp] = '\0';
         strcpy(myGame->opNick, recBuffer);
-        sendto(opSockfd, myGame->myNick, sizeof(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
+        sendto(opSockfd, myGame->myNick, strlen(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
         myGame->myTurn = MY_TURN;
     } else if (strcmp(recBuffer, PLAYACC) == 0) {
-        sendto(opSockfd, myGame->myNick, sizeof(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
+        printf("Dostalem PLAYACC");
+        sendto(opSockfd, myGame->myNick, strlen(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
         tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
         recBuffer[tmp] = '\0';
         strcpy(myGame->opNick, recBuffer);
         myGame->myTurn = OP_TURN;
+    } else {
+        printf("mamy problem\n");
     }
 }
 
@@ -102,7 +108,6 @@ int main(int argc, char* argv[]) {
         exit(-1);
     }
     
-
     socklen_t len = sizeof(opponentAddress);
 
     printf("Rozpoczynam gre z %s. Napisz <koniec> aby zakonczyc lub <wynik> by wyswietlic aktualny wynik gry\n",opIpAddr);
