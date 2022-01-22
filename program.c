@@ -10,22 +10,76 @@
 
 #define MSG_LEN 512
 #define n 8765
+#define PLAYREQ "PLAYME"
+#define PLAYACC "PLAYOK"
+#define ENDGAME "<koniec>"
+#define GETSCORE "<wynik>" 
+#define NICKLEN 50
+#define MY_TURN 1
+#define OP_TURN 0
 
-int flagMyMove = 0;
-int msgRecCounter = 0;
-int* msgRecCounterPointer = &msgRecCounter;
+struct gameInfo {
+    int myPoints;
+    int opPoints;
+    int myTurn;
+    char game[3][3];
+    char myNick[NICKLEN];
+    char opNick[NICKLEN];
+} *myGame;
+
+char recBuffer[MSG_LEN], sndBuffer[MSG_LEN];
+
+void createGameSession(int mySockfd, int opSockfd, struct sockaddr_in myAddress, struct sockaddr_in opponentAddress, socklen_t len) {
+    int tmp;
+    //Sends play request and awaits for answer
+    sendto(opSockfd, PLAYREQ, sizeof(PLAYREQ), 0, (struct sockaddr*) &opponentAddress, len);
+    printf("[Propozycja gry wysłana]");
+    tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+    recBuffer[tmp] = '\0';
+
+    //define who is moving first and what nicknames are
+    //after receiving PLAYACC send nickname and wait for opponent's one
+    if (strcmp(recBuffer, PLAYREQ) == 0) {
+        sendto(opSockfd, PLAYACC, sizeof(PLAYACC), 0, (struct sockaddr*) &opponentAddress, len);
+        tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+        recBuffer[tmp] = '\0';
+        strcpy(myGame->opNick, recBuffer);
+        sendto(opSockfd, myGame->myNick, sizeof(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
+        myGame->myTurn = MY_TURN;
+    } else if (strcmp(recBuffer, PLAYACC) == 0) {
+        sendto(opSockfd, myGame->myNick, sizeof(myGame->myNick), 0, (struct sockaddr*) &opponentAddress, len);
+        tmp = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
+        recBuffer[tmp] = '\0';
+        strcpy(myGame->opNick, recBuffer);
+        myGame->myTurn = OP_TURN;
+    }
+}
 
 int main(int argc, char* argv[]) {
     int mySockfd, opSockfd;
     struct sockaddr_in myAddress, opponentAddress;
-    char recBuffer[MSG_LEN], sndBuffer[MSG_LEN];
     int childPid;
+    char opIpAddr[20];
+
+    myGame = calloc(0, sizeof(int)*3 + sizeof(char)*9 + sizeof(char) * 2 * NICKLEN);
+
+    //check arguments and set up nick and address
+    if (argc < 2) {
+        printf("Usage: program address [nickname]\n");
+        exit(-1);
+    }
+    strcpy(myGame->myNick, (argc == 3 ? argv[2] : "NN"));
+    strcpy(opIpAddr, argv[1]); //TODO: domain addresses support
+
+    myGame->myPoints = 0;
+    myGame->opPoints = 0;
+    myGame->myTurn = -1;
+    memset(myGame->game, 0, sizeof(char)*9);
 
     if ((mySockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         printf("socket() failed\n");
         exit(-1);
     }
-    printf("[Socket created]\n");
 
     memset(&myAddress, 0, sizeof(myAddress));
     memset(&opponentAddress, 0, sizeof(opponentAddress));
@@ -35,37 +89,48 @@ int main(int argc, char* argv[]) {
     myAddress.sin_port = htons(n);
 
     opponentAddress.sin_family = AF_INET;
-    opponentAddress.sin_addr.s_addr = inet_addr(argv[1]);
+    opponentAddress.sin_addr.s_addr = inet_addr(opIpAddr);
     opponentAddress.sin_port = htons(n);
 
     if (bind(mySockfd, (struct sockaddr*) &myAddress, sizeof(myAddress)) < 0) {
         printf("bind() failed\n");
         exit(-1);
     }
-    printf("[bind completed]\n");
 
-    opSockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if ((opSockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        printf("op socket() failed\n");
+        exit(-1);
+    }
+    
+
     socklen_t len = sizeof(opponentAddress);
 
+    printf("Rozpoczynam gre z %s. Napisz <koniec> aby zakonczyc lub <wynik> by wyswietlic aktualny wynik gry\n",opIpAddr);
+    createGameSession(mySockfd,opSockfd, myAddress, opponentAddress, len);
+
+    //test
+    printf("myPoints: %d\n", myGame->myPoints);
+    printf("opPoints: %d\n", myGame->opPoints);
+    printf("myNick: %s\n", myGame->myNick);
+    printf("opNick: %s\n", myGame->opNick);
+
+    //Proces potomny odpowiada za otrzymywanie wiadomości
+    //Proces macierzysty odpowiada za wysyłanie wiadomości
     if ((childPid = fork()) == 0) {
         while(1) {
-        printf("[Child waiting for a message]\n");
         int recLen = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
         recBuffer[recLen] = '\0';
-        printf("[Child: Received message %d]\n", ++msgRecCounter);
         printf("message: %s", recBuffer);
         }
-        
         exit(0);
     } else {
         while(1) {
         printf("Give me message:\n");
         fgets(sndBuffer, MSG_LEN, stdin);
-        printf("[Sending message + %d]\n", *msgRecCounterPointer);
         sendto(opSockfd, sndBuffer, strlen(sndBuffer), 0, (struct sockaddr*) &opponentAddress, len);
         }
-        
     }
+    close(opSockfd);
     close(mySockfd);
     return 0;
 }
