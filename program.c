@@ -12,6 +12,8 @@
 #define n 8765
 
 int flagMyMove = 0;
+int msgRecCounter = 0;
+int* msgRecCounterPointer = &msgRecCounter;
 
 int main(int argc, char* argv[]) {
     int mySockfd, opSockfd;
@@ -29,7 +31,7 @@ int main(int argc, char* argv[]) {
     memset(&opponentAddress, 0, sizeof(opponentAddress));
 
     myAddress.sin_family = AF_INET;
-    myAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+    myAddress.sin_addr.s_addr = INADDR_ANY;
     myAddress.sin_port = htons(n);
 
     opponentAddress.sin_family = AF_INET;
@@ -50,7 +52,7 @@ int main(int argc, char* argv[]) {
         printf("[Child waiting for a message]\n");
         int recLen = recvfrom(mySockfd, recBuffer, MSG_LEN, 0, (struct sockaddr*) &opponentAddress, &len);
         recBuffer[recLen] = '\0';
-        printf("[Child: Received message]\n");
+        printf("[Child: Received message %d]\n", ++msgRecCounter);
         printf("message: %s", recBuffer);
         }
         
@@ -59,7 +61,7 @@ int main(int argc, char* argv[]) {
         while(1) {
         printf("Give me message:\n");
         fgets(sndBuffer, MSG_LEN, stdin);
-        printf("[Sending message]\n");
+        printf("[Sending message + %d]\n", *msgRecCounterPointer);
         sendto(opSockfd, sndBuffer, strlen(sndBuffer), 0, (struct sockaddr*) &opponentAddress, len);
         }
         
